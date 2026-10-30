@@ -1,0 +1,25 @@
+/* Override these on .lpf-grid in your theme to restyle */
+.lpf-grid{--lpf-accent:#1d6fb8;--lpf-muted:#6b7785;--lpf-bar:#f5f8fc;--lpf-border:#e3e8ef;
+  display:grid;grid-template-columns:repeat(var(--lpf-cols,3),minmax(0,1fr));gap:16px;max-width:calc(var(--lpf-cols,3) * 285px);margin:0 auto}
+.lpf-card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--lpf-border);color:inherit;text-decoration:none;overflow:hidden;transition:box-shadow .15s}
+.lpf-card:hover{box-shadow:0 4px 14px #0000001f;text-decoration:none}
+.lpf-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 9px;background:var(--lpf-bar);border-bottom:1px solid var(--lpf-border)}
+.lpf-author{display:flex;align-items:center;gap:8px;min-width:0}
+.lpf-logo{width:22px;height:22px;border-radius:50%;object-fit:cover;flex:none}
+.lpf-logo-text{display:grid;place-items:center;background:var(--lpf-accent);color:#fff;font-size:12px;font-weight:600}
+.lpf-name{color:var(--lpf-accent);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lpf-date{display:flex;align-items:center;gap:3px;color:var(--lpf-muted);font-size:10px;white-space:nowrap}
+.lpf-card svg{width:1em;height:1em;flex:none}
+.lpf-text{margin:9px 9px 10px;font-size:12px;line-height:1.15rem;color:var(--lpf-muted);
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;height:calc(3 * 1.15rem)}
+.lpf-text-only{-webkit-line-clamp:10;height:auto;max-height:calc(10 * 1.15rem);flex:1}
+.lpf-media{position:relative;aspect-ratio:3/2;background:#eef1f5}
+.lpf-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;margin:0;border-radius:0}
+.lpf-play{position:absolute;inset:0;display:grid;place-items:center}
+.lpf-play svg{width:42px;height:42px}
+.lpf-article{padding:0 9px 10px;font-size:12px;color:var(--lpf-accent);flex:1}
+.lpf-foot{display:flex;gap:14px;margin-top:auto;padding:10px 9px;background:var(--lpf-bar);color:var(--lpf-muted);font-size:11px}
+.lpf-foot span{display:flex;align-items:center;gap:4px}
+.lpf-error{white-space:pre-wrap}
+@media (max-width:900px){.lpf-grid[data-cols="3"],.lpf-grid[data-cols="4"],.lpf-grid[data-cols="5"],.lpf-grid[data-cols="6"]{--lpf-cols:2!important}}
+@media (max-width:600px){.lpf-grid{--lpf-cols:1!important}}
