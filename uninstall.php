@@ -8,4 +8,5 @@ delete_option( 'lpf_settings' );
 delete_option( 'lpf_token' );
 delete_option( 'lpf_feed_cache' );
 delete_option( 'lpf_orgs' );
+delete_option( 'lpf_throttle' );
 delete_transient( 'lpf_admin_orgs' );

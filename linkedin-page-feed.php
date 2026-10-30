@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       LinkedIn Page Feed
  * Description:       Show the latest posts from a LinkedIn Company Page with the [linkedin_feed] shortcode.
- * Version:           0.2.0
+ * Version:           0.2.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            paradonk
@@ -12,7 +12,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'LPF_VERSION', '0.2.0' );
+define( 'LPF_VERSION', '0.2.1' );
 define( 'LPF_URL', plugin_dir_url( __FILE__ ) );
 
 require_once __DIR__ . '/includes/class-lpf-api.php';

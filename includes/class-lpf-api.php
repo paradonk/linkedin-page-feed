@@ -8,6 +8,9 @@ class LPF_API {
 	const CACHE_OPT  = 'lpf_feed_cache'; // "orgId:count" -> [ 'at' => time, 'posts' => [...] ]
 	const TOKEN_OPT  = 'lpf_token';
 	const MAX_COUNT  = 100;
+	const THROTTLE_OPT = 'lpf_throttle'; // resource -> blocked until (time)
+
+	private static $incomplete = false; // set by fetch_posts when some media couldn't be resolved
 
 	public static function settings() {
 		$s = wp_parse_args(
@@ -142,7 +145,7 @@ class LPF_API {
 		$code = wp_remote_retrieve_response_code( $res );
 		$body = wp_remote_retrieve_body( $res );
 		if ( $code < 200 || $code >= 300 ) {
-			return new WP_Error( 'lpf_api', "LinkedIn API {$code} {$path}\n{$body}" );
+			return new WP_Error( 'lpf_api', "LinkedIn API {$code} {$path}\n{$body}", array( 'status' => $code ) );
 		}
 		return json_decode( $body, true );
 	}
@@ -176,24 +179,34 @@ class LPF_API {
 		return 'List(' . implode( ',', array_map( 'rawurlencode', $urns ) ) . ')';
 	}
 
+	// When a daily limit was hit for 'images' / 'videos', the time it resets (else 0)
+	public static function blocked_until( $resource ) {
+		$until = get_option( self::THROTTLE_OPT, array() )[ $resource ] ?? 0;
+		return $until > time() ? $until : 0;
+	}
+
 	// Remote URLs for image and video URNs that aren't stored locally yet.
-	// Batch calls only: the image endpoint has a low daily limit.
+	// Batch calls only: these endpoints have low daily limits.
 	private static function media_urls( $image_urns, $video_urns ) {
 		$urls = array();
-		if ( $image_urns ) {
-			$data = self::get( '/images?ids=' . self::ids_list( $image_urns ) );
-			if ( is_wp_error( $data ) ) {
-				error_log( 'LinkedIn Page Feed: image lookup failed: ' . $data->get_error_message() );
-			} else {
-				$urls += array_filter( wp_list_pluck( $data['results'] ?? array(), 'downloadUrl' ) );
+		foreach ( array(
+			array( 'images', $image_urns, 'downloadUrl' ),
+			array( 'videos', $video_urns, 'thumbnail' ),
+		) as list( $resource, $urns, $field ) ) {
+			if ( ! $urns || self::blocked_until( $resource ) ) {
+				continue;
 			}
-		}
-		if ( $video_urns ) {
-			$data = self::get( '/videos?ids=' . self::ids_list( $video_urns ) );
-			if ( is_wp_error( $data ) ) {
-				error_log( 'LinkedIn Page Feed: video lookup failed: ' . $data->get_error_message() );
-			} else {
-				$urls += array_filter( wp_list_pluck( $data['results'] ?? array(), 'thumbnail' ) );
+			$data = self::get( "/{$resource}?ids=" . self::ids_list( $urns ) );
+			if ( ! is_wp_error( $data ) ) {
+				$urls += array_filter( wp_list_pluck( $data['results'] ?? array(), $field ) );
+				continue;
+			}
+			error_log( "LinkedIn Page Feed: {$resource} lookup failed: " . $data->get_error_message() );
+			// Daily limit: don't spend more calls until the next UTC day
+			if ( 429 === ( $data->get_error_data()['status'] ?? 0 ) ) {
+				$throttle              = get_option( self::THROTTLE_OPT, array() );
+				$throttle[ $resource ] = ( intdiv( time(), DAY_IN_SECONDS ) + 1 ) * DAY_IN_SECONDS + 5 * MINUTE_IN_SECONDS;
+				update_option( self::THROTTLE_OPT, $throttle, false );
 			}
 		}
 		return $urls;
@@ -289,7 +302,8 @@ class LPF_API {
 			array_values( array_filter( $missing, $is_video ) )
 		);
 		// Stored copies never expire; unstored remote URLs are used as a fallback
-		$urls  = LPF_Media::store( $remote ) + $remote;
+		$urls             = LPF_Media::store( $remote ) + $remote;
+		self::$incomplete = (bool) array_diff( $missing, array_keys( $urls ) );
 		$stats = self::stats( $org_id, array_map( fn( $i ) => $i[0]['id'], $items ) );
 
 		$posts = array();
@@ -317,7 +331,9 @@ class LPF_API {
 		$cache = get_option( self::CACHE_OPT, array() );
 		$hit   = $cache[ $key ] ?? null;
 		$ttl   = max( 5, (int) self::settings()['cache_minutes'] ) * MINUTE_IN_SECONDS;
-		if ( $hit && time() - $hit['at'] < $ttl ) {
+		// Posts with missing images are refetched early, once the media can be resolved
+		$retry = $hit['retry_at'] ?? 0;
+		if ( $hit && time() - $hit['at'] < $ttl && ( ! $retry || time() < $retry ) ) {
 			return $hit['posts'];
 		}
 
@@ -328,13 +344,17 @@ class LPF_API {
 				return $posts;
 			}
 			// Serve stale posts and retry in 5 minutes rather than on every page view
-			$cache[ $key ]['at'] = time() - $ttl + 5 * MINUTE_IN_SECONDS;
+			$cache[ $key ]['at']       = time() - $ttl + 5 * MINUTE_IN_SECONDS;
+			$cache[ $key ]['retry_at'] = 0;
 			update_option( self::CACHE_OPT, $cache, false );
 			return $hit['posts'];
 		}
 		$cache[ $key ] = array(
-			'at'    => time(),
-			'posts' => $posts,
+			'at'       => time(),
+			'posts'    => $posts,
+			'retry_at' => self::$incomplete
+				? max( time() + 15 * MINUTE_IN_SECONDS, self::blocked_until( 'images' ), self::blocked_until( 'videos' ) )
+				: 0,
 		);
 		update_option( self::CACHE_OPT, $cache, false );
 		return $posts;

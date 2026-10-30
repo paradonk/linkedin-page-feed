@@ -1,7 +1,7 @@
 === LinkedIn Page Feed ===
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPL-2.0-or-later
 
 Show the latest posts from a LinkedIn Company Page.

@@ -195,6 +195,20 @@ class LPF_Admin {
 					);
 					?>
 				</p>
+				<?php
+				$blocked = max( LPF_API::blocked_until( 'images' ), LPF_API::blocked_until( 'videos' ) );
+				if ( $blocked ) :
+					?>
+					<div class="notice notice-warning inline"><p>
+						<?php
+						printf(
+							/* translators: %s: date and time the limit resets */
+							esc_html__( 'LinkedIn’s daily limit for image lookups has been reached, so some posts are shown without images. They will load automatically after %s.', 'linkedin-page-feed' ),
+							esc_html( wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $blocked ) )
+						);
+						?>
+					</p></div>
+				<?php endif; ?>
 				<p>
 					<?php
 					self::action_button( 'lpf_oauth_start', __( 'Reconnect', 'linkedin-page-feed' ) );
